@@ -1,16 +1,4 @@
-function convert_fields(tag, timestamp, record)
-    local fields_to_convert = { "turnAroundTimeMSec", "reqEndTimeMSec", "cacheStatus", "downloadTime", "statusCode" }
-
-    -- if it's not a string vale, element will be removed
-    for _, field in ipairs(fields_to_convert) do
-        if record[field] then
-            record[field] = tonumber(record[field])
-        end
-    end
-
-    return 1, timestamp, record
-end
-
+-- a function to convert anything that looks like a number to a to a number
 function convert_to_numbers(tag, timestamp, record)
     local new_record = {}
     
@@ -26,6 +14,7 @@ function convert_to_numbers(tag, timestamp, record)
     return 1, timestamp, new_record
 end
 
+-- set otel severitynumber based on http status code
 -- https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber
 function set_severity_number(tag, timestamp, record)
     local field_to_check = "statusCode"   
@@ -49,6 +38,7 @@ function set_severity_number(tag, timestamp, record)
     return 1, timestamp, record
 end
 
+-- just for fun, set timestamp based on reqTimeSec
 function convert_time(tag, timestamp, record)
     local time_field = "reqTimeSec"        -- The field containing epoch time in seconds
     local output_field = "timestamp"       -- New field for human-readable time
@@ -68,6 +58,7 @@ function convert_time(tag, timestamp, record)
     return 1, timestamp, record
 end
 
+-- set TIMESTAMP of our event based on reqTimeSec from our MESSAGE
 function set_timestamp(tag, timestamp, record)
     local new_ts = record["reqTimeSec"]
     if new_ts then
