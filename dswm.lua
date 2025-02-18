@@ -1,4 +1,4 @@
--- a function to convert anything that looks like a number to a to a number
+-- a function to convert anything that looks like a number to a number
 function convert_to_numbers(tag, timestamp, record)
     local new_record = {}
     
