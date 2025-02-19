@@ -5,6 +5,11 @@ pipeline:
 
       processors:
         logs:
+          # only start processors for specific hostnames
+          - name: lua
+            script: dswm.lua
+            call: filter_on_hostname
+
           # get the reqTimSec and set as TIMESTAMP in the event
           - name: lua
             script: dswm.lua

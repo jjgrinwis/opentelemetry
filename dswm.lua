@@ -1,3 +1,21 @@
+-- Define our list of hostnames we're going to process
+local allowed_values = {
+    ["test.hostname.net"] = true,
+    ["www.example.com"] = true
+}
+
+-- our lua script to filter on hostnames we would like to process
+function filter_on_hostname(tag, timestamp, record)
+    local field_value = record["reqHost"]
+
+    -- Check if the field exists and is in the allowed set
+    if field_value and allowed_values[field_value] then
+        return 1, timestamp, record 
+    end
+
+    return -1, 0, nil  -- Drop the record, not going to process this one.
+end
+
 -- a function to convert anything that looks like a number to a number
 function convert_to_numbers(tag, timestamp, record)
     local new_record = {}
