@@ -15,7 +15,7 @@ pipeline:
             script: dswm.lua
             call: set_timestamp
 
-          # add timestamp to our MESSAGE
+          # add timestamp to our MESSAGE (optional)
           - name: lua
             script: dswm.lua
             call: convert_time
@@ -30,7 +30,7 @@ pipeline:
             script: dswm.lua
             call: convert_to_numbers
 
-          # create some nice otel message
+          # create some nice otel message from our payload
           - name: opentelemetry_envelope
 
           # set otel resources service name

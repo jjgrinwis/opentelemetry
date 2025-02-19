@@ -1,4 +1,4 @@
--- Define our list of hostnames we're going to process
+-- Define our set of hostnames we're going to process just to make sure we don't overload otel backend.
 local allowed_values = {
     ["test.hostname.net"] = true,
     ["www.example.com"] = true
@@ -9,6 +9,7 @@ function filter_on_hostname(tag, timestamp, record)
     local field_value = record["reqHost"]
 
     -- Check if the field exists and is in the allowed set
+    -- using a set for faster lookups, no need to go over a list
     if field_value and allowed_values[field_value] then
         return 1, timestamp, record 
     end
