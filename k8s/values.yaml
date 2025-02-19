@@ -376,25 +376,6 @@ networkPolicy:
 
 luaScripts:
   dswm.lua: |
-    -- Define our set of hostnames we're going to process just to make sure we don't overload otel backend.
-    local allowed_values = {
-      ["test.hostname.net"] = true,
-       ["www.example.com"] = true
-    }
-
-    -- our lua script to filter on hostnames we would like to process
-    function filter_on_hostname(tag, timestamp, record)
-        local field_value = record["reqHost"]
-
-        -- Check if the field exists and is in the allowed set
-        -- using a set for faster lookups, no need to go over a list
-        if field_value and allowed_values[field_value] then
-            return 1, timestamp, record 
-        end
-
-        return -1, 0, nil  -- Drop the record, not going to process this one.
-    end
-
     -- a function to convert anything that looks like a number to a number
     function convert_to_numbers(tag, timestamp, record)
         local new_record = {}
@@ -466,104 +447,71 @@ luaScripts:
 
 ## https://docs.fluentbit.io/manual/administration/configuring-fluent-bit/classic-mode/configuration-file
 config:
-  service: |
-    [SERVICE]
-      Flush {{ .Values.flush }}
-      Log_Level {{ .Values.logLevel }}
-      Parsers_File /fluent-bit/etc/parsers.conf
-      Parsers_File /fluent-bit/etc/conf/custom_parsers.conf
-      HTTP_Server On
-      HTTP_Listen 0.0.0.0
-      HTTP_Port {{ .Values.metricsPort }}
-      Health_Check On
-      Daemon Off
-
-  ## https://docs.fluentbit.io/manual/pipeline/inputs
-  inputs: |
-    [INPUT]
-      Name          http
-      Port          8888
-      Threaded      True
-
-  ## https://docs.fluentbit.io/manual/pipeline/filters
-  filters: |
-    [PROCESSOR]
-      Name          lua
-      Script        dswm.lua
-      Call          filter_on_hostname
-
-    [PROCESSOR]
-      Name          lua
-      Script        dswm.lua
-      Call          set_timestamp
-
-    [PROCESSOR]
-      Name          lua
-      Script        dswm.lua
-      Call          convert_time
-
-    [PROCESSOR]
-      Name          lua
-      Script        dswm.lua
-      Call          set_severity_number
-
-    [PROCESSOR]
-      Name          lua
-      Script        dswm.lua
-      Call          convert_to_numbers
-
-    [PROCESSOR]
-      Name          opentelemetry_envelope
-
-    [PROCESSOR]
-      Name          content_modifier
-      Context       otel_resource_attributes
-      Action        insert
-      Key           service.name
-      Value         akamai-datastream
-
-    [PROCESSOR]
-      Name          content_modifier
-      Context       otel_resource_attributes
-      Action        insert
-      Key           service.version
-      Value         1
-
-  ## https://docs.fluentbit.io/manual/pipeline/outputs
-  outputs: |
-    [OUTPUT]
-        Name          stdout
-        Match         ds.log
-
   ## https://docs.fluentbit.io/manual/administration/configuring-fluent-bit/classic-mode/upstream-servers
   ## This configuration is deprecated, please use `extraFiles` instead.
   upstream: {}
 
-  ## https://docs.fluentbit.io/manual/pipeline/parsers
-  customParsers: |
-    [PARSER]
-        Name docker_no_time
-        Format json
-        Time_Keep Off
-        Time_Key time
-        Time_Format %Y-%m-%dT%H:%M:%S.%L
-
   # This allows adding more files with arbitrary filenames to /fluent-bit/etc/conf by providing key/value pairs.
   # The key becomes the filename, the value becomes the file content.
-  extraFiles: {}
-#     upstream.conf: |
-#       [UPSTREAM]
-#           upstream1
-#
-#       [NODE]
-#           name       node-1
-#           host       127.0.0.1
-#           port       43000
-#     example.conf: |
-#       [OUTPUT]
-#           Name example
-#           Match foo.*
-#           Host bar
+  extraFiles:
+    fluent-bit.yaml: |
+      service:
+        flush: 1
+        log_level: debug
+        http_server: true
+        http_listen: 0.0.0.0
+        http_port: 2020
+        daemon: off
+        health_check: on
+
+      pipeline:
+        inputs:
+          - name: http
+            port: 8888
+            threaded: true
+
+            processors:
+              logs:
+                # get the reqTimSec and set as TIMESTAMP in the event
+                - name: lua
+                  script: /fluent-bit/scripts/dswm.lua
+                  call: set_timestamp
+
+                # add timestamp to our MESSAGE (optional)
+                - name: lua
+                  script: /fluent-bit/scripts/dswm.lua
+                  call: convert_time
+
+                # set severity number in MESSAGE based on HTTP status code
+                - name: lua
+                  script: /fluent-bit/scripts/dswm.lua
+                  call: set_severity_number
+
+                # convert anything to a number that looks like a number in the MESSAGE
+                - name: lua
+                  script: /fluent-bit/scripts/dswm.lua
+                  call: convert_to_numbers
+
+                # create some nice otel message from our payload
+                - name: opentelemetry_envelope
+
+                # set otel resources service name
+                - name: content_modifier
+                  context: otel_resource_attributes
+                  action: insert
+                  key: "service.name"
+                  value: "akamai-datastream"
+
+                # set otel version resource version, default to 1.
+                - name: content_modifier
+                  context: otel_resource_attributes
+                  action: insert
+                  key: "service.version"
+                  value: "1"
+
+        outputs:
+          - name: stdout
+            match: ds.log
 
 # The config volume is mounted by default, either to the existingConfigMap value, or the default of "fluent-bit.fullname"
 volumeMounts:
@@ -597,7 +545,7 @@ command:
 
 args:
   - --workdir=/fluent-bit/etc
-  - --config=/fluent-bit/etc/conf/fluent-bit.conf
+  - --config=/fluent-bit/etc/conf/fluent-bit.yaml
 
 # This supports either a structured array or a templatable string
 initContainers: []
