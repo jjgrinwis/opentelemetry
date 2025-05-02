@@ -30,7 +30,12 @@ pipeline:
             script: dswm.lua
             call: convert_to_numbers
 
-          # create some nice otel message from our payload
+          # get global request number from customField if it exists
+          - name: lua
+            script: dswm.lua
+            call: extract_grn
+
+          # create some nice otel message from our log payload
           - name: opentelemetry_envelope
 
           # set otel resources service name
@@ -40,7 +45,7 @@ pipeline:
             key: "service.name"
             value: "akamai-datastream"
 
-          # set otel version resource version, default to 1.
+          # set otel version resource to 1
           - name: content_modifier
             context: otel_resource_attributes
             action: insert
@@ -48,12 +53,12 @@ pipeline:
             value: "1"
 
   outputs:
-    - name: stdout
-      match: ds.log
-
     - name: opentelemetry
       match: "*"
       host: 127.0.0.1
       port: 4318
       logs_severity_number_message_key: severityNumber
       logs_trace_id_message_key: reqId
+
+    - name: stdout
+      match: ds.log
