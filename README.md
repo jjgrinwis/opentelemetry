@@ -1,9 +1,9 @@
 Example on how to convert an Akamai DataStream input into an otel format.
 
-start the otel collector via './otelcol --config otel-collector.yaml'
-start fluent-bit via with 'fluent-bit -c fluentbit.yaml'.
+start the otel collector via ```./otelcol --config otel-collector.yaml```
+start fluent-bit via with ```fluent-bit -c fluentbit.yaml```.
 
-Now just dump your datastream example http://localhost:2020/ds.log and off you go.
+Now just POST your datastream example to http://localhost:2020/ds.log and off you go.
 
 ```
 {
