@@ -5,6 +5,7 @@ start fluent-bit via with 'fluent-bit -c fluentbit.yaml'.
 
 Now just dump your datastream example http://localhost:2020/ds.log and off you go.
 
+```
 {
   "version": "1",
   "reqTimeSec": "1752595133238",
@@ -29,4 +30,4 @@ Now just dump your datastream example http://localhost:2020/ds.log and off you g
   "breadcrumbs": "//BC/[a=23.50.55.38,c=g,k=8,l=35,j=[[a=54.73.53.134,c=o,k=2,l=27,m=0]]],[a=54.73.53.134,c=o,k=2,l=27,m=0]",
   "customField": "grn:0.53b3217.1741166436.12e9fda%7cx-akamai-bot-action:none%7cx-client-tls-fingerprint:3%7e5694e70ae5aa84c6%7ctraceId:0cf929f5a169a2356a610121f0287519%7cspanId:388afca56b4bc214"
 }
-
+```
