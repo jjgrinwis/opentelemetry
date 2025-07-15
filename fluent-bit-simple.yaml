@@ -1,0 +1,45 @@
+pipeline:
+  inputs:
+    - name: http
+      tag: datastream_input
+      port: 2020
+
+      processors:
+        logs:
+          # get trace/span-ids
+          - name: lua
+            script: dswm.lua
+            call: extract_otel_ids
+
+          # extract grn and add as tag
+          - name: lua
+            script: dswm.lua
+            call: extract_grn
+
+          # fix missing / in path
+          - name: lua
+            script: dswm.lua
+            call: normalize_path
+
+          # generate otel trace
+          - name: lua
+            script: dswm.lua
+            call: generate_resource_span
+
+          # generate otel trace
+          - name: lua
+            script: dswm.lua
+            call: collect_traces
+
+  outputs:
+    - name: stdout
+      match: "*"
+
+    - name: http
+      match: "*"
+      host: localhost
+      port: 4318
+      uri: /v1/traces
+      log_response_payload: true
+      json_date_key: false
+      format: json_stream
