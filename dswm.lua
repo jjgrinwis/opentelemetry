@@ -15,6 +15,11 @@ function normalize_path(tag, timestamp, record)
         record["reqPath"] = "/" .. path
     end
 
+    -- Remove trailing slash if present (except for root path "/")
+    if record["reqPath"] ~= "/" and record["reqPath"]:sub(-1) == "/" then
+        record["reqPath"] = record["reqPath"]:sub(1, -2)
+    end
+
     return 1, timestamp, record
 end
 
@@ -273,6 +278,29 @@ function extract_a_where_c_o(tag, timestamp, record)
     return 1, timestamp, record
 end
 
+-- get origin_rtt from breadcrumb data
+-- Extract and return l + k for top-level c=o part
+-- l being rtt k the request end time
+function get_origin_rtt(breadcrumb)
+    if not breadcrumb or type(breadcrumb) ~= "string" then
+        return 0
+    end
+
+    local decoded = urldecode(breadcrumb)
+    local cleaned_input = decoded:gsub("j=%[%[.-%]%],?", "")
+
+    for part in cleaned_input:gmatch("%[(.-)%]") do
+        local c = part:match("c=(%a)")
+        if c == "o" then
+            local l = tonumber(part:match("l=(%d+)") or "0")
+            local k = tonumber(part:match("k=(%d+)") or "0")
+            return l + k
+        end
+    end
+
+    return 0
+end
+
 -- generate an resource span using information from datastream 
 function generate_resource_span(tag, timestamp, record)
     
@@ -315,11 +343,17 @@ function generate_resource_span(tag, timestamp, record)
     table.insert(span["attributes"], { key = "server.address", value = { stringValue = record["reqHost"] } })
     table.insert(span["attributes"], { key = "client.address", value = { stringValue = record["cliIP"]} })
     table.insert(span["attributes"], { key = "url.path", value = { stringValue = record["reqPath"] } })
+    table.insert(span["attributes"], { key = "url.query", value = { stringValue = record["queryStr"] } })
     table.insert(span["attributes"], { key = "http.response.status_code", value = { intValue = tonumber(record["statusCode"]) } })
     table.insert(span["attributes"], { key = "http.response.body.size", value = { intValue = tonumber(record["objSize"]) } })
     table.insert(span["attributes"], { key = "akamai.grn", value = { stringValue = record["grn"] } })
     table.insert(span["attributes"], { key = "akamai.edge_ip", value = { stringValue = record["edgeIP"] } })
     table.insert(span["attributes"], { key = "akamai.cache_status", value = { intValue = tonumber(record["cacheStatus"]) } })
+    -- akamai.rtt is turnaround time on first edge minus origin rtt which includes request end time.
+    table.insert(span["attributes"], { key = "akamai.origin_rtt", value = { intValue = get_origin_rtt(record["breadcrumbs"]) } })
+    table.insert(span["attributes"], { key = "akamai.rtt", value = { intValue = tonumber(record["turnAroundTimeMSec"] or "0") - get_origin_rtt(record["breadcrumbs"]) } })
+    
+    
     --table.insert(span["attributes"], { key = "akamai.download_time", value = { intValue = tonumber(record["downloadTime"]) } })
 
     -- Span Events filled with some timers without any attributes. 
